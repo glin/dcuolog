@@ -188,6 +188,13 @@ test_that("parse_combat does not parse negative power outs when summoning Crysta
   expect_true(nrow(events) == 0)
 })
 
+test_that("parse_combat handles empty logs", {
+  log <- c("")
+  events <- parse_combat(log)
+  expect_true(nrow(events) == 0)
+  expect_true(inherits(events, "combat_events"))
+})
+
 context("parse_summary")
 
 test_that("parse_summary parses summary events", {
@@ -251,6 +258,13 @@ test_that("parse_summary handles zero time bug", {
   expect_true(events$crits == 16)
   expect_true(events$crit_pct == 0.271)
   expect_true(events$targets == 1)
+})
+
+test_that("parse_summary handles empty logs", {
+  log <- c("")
+  events <- parse_summary(log)
+  expect_true(nrow(events) == 0)
+  expect_true(inherits(events, "parser_summary"))
 })
 
 context("parse_crowd_control")
@@ -324,6 +338,13 @@ test_that("parse_crowd_control does not parse impulse", {
   expect_true(nrow(events) == 0)
 })
 
+test_that("parse_crowd_control handles empty logs", {
+  log <- c("")
+  events <- parse_crowd_control(log)
+  expect_true(nrow(events) == 0)
+  expect_true(inherits(events, "crowd_control_events"))
+})
+
 context("parse_knockout")
 
 test_that("parse_knockout parses knockouts", {
@@ -342,6 +363,13 @@ test_that("parse_knockout does not parse Restoration Barrel knockouts", {
            "1468470478861786 [Damage In] Captain Planet knocked out Restoration Barrel")
   events <- parse_knockout(log)
   expect_true(nrow(events) == 0)
+})
+
+test_that("parse_knockout handles empty logs", {
+  log <- c("")
+  events <- parse_knockout(log)
+  expect_true(nrow(events) == 0)
+  expect_true(inherits(events, "knockout_events"))
 })
 
 context("parse_dodge")
@@ -364,3 +392,9 @@ test_that("parse_dodge does not parse evades", {
   expect_true(nrow(events) == 0)
 })
 
+test_that("parse_dodge handles empty logs", {
+  log <- c("")
+  events <- parse_dodge(log)
+  expect_true(nrow(events) == 0)
+  expect_true(inherits(events, "dodge_events"))
+})

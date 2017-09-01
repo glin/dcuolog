@@ -1,224 +1,175 @@
+# TODO overall_pct not relevant when by_ability=FALSE or length source = 1
+# TODO targets, dps/target, change by, change targets showing up if target=NULL, don't show time (do it somewhere else, or in attributes)
+
+
 #' Summarize general combat events.
 #'
 #' @param events A combat_events object.
-#' @param type One of "damage", "healing", "power", "absorb", "supercharge" (damage by default).
-#' @param by Group by any combination of "source", "target", "ability" (all by default).
-#' @param source Character vector of sources to filter by (optional).
-#' @param target Character vector of targets to filter by (optional).
-#' @param ability Character vector of abilities to filter by (optional).
-#' @param crit Filter by crit=TRUE or crit=FALSE (optional).
-#' @param sort_by Column to sort results by (optional).
-#' @param sort_order Sort in "desc" or "asc" order (desc by default).
+#' @param type One of "damage", "healing", "power", "absorb", "supercharge",
+#'   "damage_in", "healing_in", "power_in" (damage by default).
+#' @param by_ability Aggregate by ability.
+#' @param power_metrics Include power in metrics (only for damage, healing, power, or absorb).
+#' @param combat_window Maximum window of combat time (10 seconds by default).
 #' @return A combat_summary object.
 summary.combat_events <- function(events,
-                                  type=c("damage", "healing", "power", "absorb", "supercharge"),
-                                  by=c("source", "target", "ability"),
-                                  source=NULL,
-                                  target=NULL,
-                                  ability=NULL,
-                                  crit=NULL,
-                                  sort_by=NULL,
-                                  sort_order=c("desc", "asc")) {
+                                  type=c("damage", "healing", "power", "absorb", "supercharge",
+                                         "damage_in", "healing_in", "power_in"),
+                                  by_ability=FALSE,
+                                  power_metrics=FALSE,
+                                  combat_window=10) {
   
-  type <- match.arg(type)
-  by <- match.arg(by, several.ok=TRUE)
+  summ_type <- match.arg(type)
+
+  if (power_metrics && !summ_type %in% c("damage", "healing", "power", "absorb")) {
+    stop("power in metrics only apply to types: damage, healing, power, or absorb")
+  }
   
-  select_expr <- quote(list(n = .N,
-                            min = suppressWarnings(min(value)),
-                            max = suppressWarnings(max(value)),
-                            avg = round(sum(value)/.N, 1),
-                            total = sum(value),
-                            crit_pct = round(sum(crit)/.N, 5)))
+  if (endsWith(summ_type, "_in")) {
+    summ_type <- unlist(strsplit(summ_type, "_"))[1]
+    source_col <- "target"
+  } else {
+    source_col <- "source"
+  }
   
-  summ_events <- summarize_events(events, select_expr, by,
-                                  type=type,
-                                  source=source,
-                                  target=target,
-                                  ability=ability,
-                                  crit=crit,
-                                  class="combat_summary")
+  group_by <- c(source_col, if (by_ability) "ability")
   
-  summ_events[, overall_pct := round(total/sum(total), 5)]
+  summ_combat <- events[type == summ_type,
+                        list(n = .N,
+                             min = suppressWarnings(min(value)),
+                             max = suppressWarnings(max(value)),
+                             avg = round(sum(value)/.N, 1),
+                             total = sum(value),
+                             crit_pct = round(sum(crit)/.N, 3)),
+                        by=group_by]
   
-  if (!is.null(sort_by)) {
-    sort_dt(summ_events, sort_by, sort_order)
+  summ_combat[, overall_pct := round(total/sum(total), 3)]
+  
+  source_times <- events[, list(time = round(total_time(time), 1),
+                                combat_time = round(active_time(time, window=combat_window), 1)),
+                         by=source_col]
+  
+  summ_combat <- merge(summ_combat, source_times, by=source_col)
+  summ_combat[, xps := ifelse(time > 0, round(total/time, 1), NA)]
+  summ_combat[, e_xps := ifelse(time > 0, round(total/combat_time, 1), NA)]
+  
+  xps <- paste0(substr(summ_type, 0, 1), "ps")
+  e_xps <- paste0("e_", xps)
+  setnames(summ_combat, c(source_col, "xps", "e_xps"), c("source", xps, e_xps))
+  
+  if (power_metrics) {
+    power_in <- events[type == "power", list(power_in = sum(value)), by=list(source=target)]
+    summ_combat <- merge(summ_combat, power_in, by="source", all.x=TRUE)
+    summ_combat[, xpp := round(ifelse(power_in > 0, total/power_in, NA), 1)]
+    setnames(summ_combat, "xpp", paste0(substr(summ_type, 0, 1), "pp"))
   }
 
-  summ_events[]
+  setattr(summ_combat, "class", c("combat_summary", class(summ_combat)))
+  
+  summ_combat[]
 }
 
-#' Summarize combat summary entries.
+#' Summarize combat parser summary events.
 #'
-#' @param events A combat_summary object.
+#' @param events A parser_summary object.
 #' @param type One of "damage", "healing", "power" (damage by default).
-#' @return A summary_summary object.
-summary.summary_events <- function(events, type=c("damage", "healing", "power")) {
+#' @return Summary table of combat summary events.
+summary.parser_summary <- function(events, type=c("damage", "healing", "power")) {
   
-  type <- match.arg(type)
-  
-  select_expr <- quote(list(n = .N,
-                            time = sum(interval),
-                            xps = round(sum(total) / sum(interval), 1),
-                            min_xps = suppressWarnings(min(xps)),
-                            max_xps = suppressWarnings(max(xps)),
-                            total = sum(total),
-                            hits = sum(hits),
-                            max = max(max),
-                            crits = sum(crits),
-                            crit_pct = round(sum(crits) / sum(hits), 3),
-                            targets = round(weighted.mean(targets, interval), 1)))
-  
-  summ_events <- summarize_events(events, select_expr, type=type, class="summary_summary")
+  summ_type <- match.arg(type)
+  summ_parser <- events[type == summ_type,
+                        list(n = .N,
+                             time = sum(interval),
+                             xps = round(sum(total) / sum(interval), 1),
+                             min_xps = suppressWarnings(min(xps)),
+                             max_xps = suppressWarnings(max(xps)),
+                             total = sum(total),
+                             hits = sum(hits),
+                             max = suppressWarnings(max(max)),
+                             crits = sum(crits),
+                             crit_pct = round(sum(crits) / sum(hits), 3),
+                             avg_targets = round(weighted.mean(targets, interval), 1))]
   
   xps_cols <- c("xps", "min_xps", "max_xps")
-  new_xps_cols <- gsub("xps", paste0(substr(type, 0, 1), "ps"), xps_cols)
-  setnames(summ_events, xps_cols, new_xps_cols)
+  new_xps_cols <- gsub("xps", paste0(substr(summ_type, 0, 1), "ps"), xps_cols)
+  setnames(summ_parser, xps_cols, new_xps_cols)
   
-  summ_events[]
+  setattr(summ_parser, "class", c("parser_summary", class(summ_parser)[-1]))
+  
+  summ_parser[]
 }
 
 #' Summarize crowd control events.
 #'
 #' @param events A crowd_control_events object.
 #' @param by Group by any combination of "source", "target", "ability", "effect" (all by default).
-#' @param source Character vector of sources to filter by (optional).
-#' @param target Character vector of targets to filter by (optional).
-#' @param ability Character vector of abilities to filter by (optional).
-#' @param effect Character vector of effects to filter by (optional).
-#' @param sort_by Column to sort results by (optional).
-#' @param sort_order Sort in "desc" or "asc" order (desc by default).
-#' @return A crowd_control_summary object.
-summary.crowd_control_events <- function(events,
-                                         by=c("source", "target", "ability", "effect"),
-                                         source=NULL,
-                                         target=NULL,
-                                         ability=NULL,
-                                         effect=NULL,
-                                         sort_by=NULL,
-                                         sort_order=c("desc", "asc")) {
+#' @return Summary table of crowd control events.
+summary.crowd_control_events <- function(events, by=c("source", "target", "ability", "effect")) {
   
-  group_by <- match.arg(by, several.ok=TRUE)
+  by <- match.arg(by, several.ok=TRUE)
+  summ_crowd_control <- events[, list(n = .N), by=by]
   
-  select_expr = quote(list(n = .N))
+  setattr(summ_crowd_control, "class", c("crowd_control_summary", class(summ_crowd_control)[-1]))
   
-  summ_events <- summarize_events(events, select_expr, by,
-                                  source=source,
-                                  target=target,
-                                  ability=ability,
-                                  effect=effect,
-                                  class="crowd_control_summary")
-  
-  if (!is.null(sort_by)) {
-    sort_dt(summ_events, sort_by, sort_order)
-  }
-  
-  summ_events[]
+  summ_crowd_control[]
 }
 
 #' Summarize knockout events.
 #'
 #' @param events A knockout_events object.
 #' @param by Group by any combination of "source", "target" (all by default).
-#' @param source Character vector of sources to filter by (optional).
-#' @param target Character vector of targets to filter by (optional).
-#' @param sort_by Column to sort results by (optional).
-#' @param sort_order Sort in "desc" or "asc" order (desc by default).
-#' @return A knockout_summary object.
-summary.knockout_events <- function(events,
-                                    by=c("source", "target"),
-                                    source=NULL,
-                                    target=NULL,
-                                    sort_by=NULL,
-                                    sort_order=c("desc", "asc")) {
+#' @return Summary table of knockout events.
+summary.knockout_events <- function(events, by=c("source", "target")) {
   
-  group_by <- match.arg(by, several.ok=TRUE)
+  by <- match.arg(by, several.ok=TRUE)
+  summ_knockout <- events[, list(n = .N), by=by]
   
-  select_expr = quote(list(n = .N))
-  
-  summ_events <- summarize_events(events, select_expr, by,
-                                  source=source,
-                                  target=target,
-                                  class="knockout_summary")
-  
-  if (!is.null(sort_by)) {
-    sort_dt(summ_events, sort_by, sort_order)
-  }
-  
-  summ_events[]
+  setattr(summ_knockout, "class", c("knockout_summary", class(summ_knockout)[-1]))
+
+  summ_knockout[]
 }
 
 #' Summarize dodge events.
 #'
 #' @param events A dodge_events object.
 #' @param by Group by any combination of "source", "target", "ability" (all by default).
-#' @param source Character vector of sources to filter by (optional).
-#' @param target Character vector of targets to filter by (optional).
-#' @param ability Character vector of abilities to filter by (optional).
-#' @param sort_by Column to sort results by (optional).
-#' @param sort_order Sort in "desc" or "asc" order (desc by default).
-#' @return A dodge_summary object.
-summary.dodge_events <- function(events,
-                                 by=c("source", "target", "ability"),
-                                 source=NULL,
-                                 target=NULL,
-                                 ability=NULL,
-                                 sort_by=NULL,
-                                 sort_order=c("desc", "asc")) {
+#' @return Summary table of dodge events.
+summary.dodge_events <- function(events, by=c("source", "target", "ability")) {
   
-  group_by <- match.arg(by, several.ok=TRUE)
+  by <- match.arg(by, several.ok=TRUE)
+  summ_dodge <- events[, list(n = .N), by=by]
   
-  select_expr = quote(list(n = .N))
+  setattr(summ_dodge, "class", c("dodge_summary", class(summ_dodge)[-1]))
   
-  summ_events <- summarize_events(events, select_expr, by,
-                                  source=source,
-                                  target=target,
-                                  ability=ability,
-                                  class="dodge_summary")
-  
-  if (!is.null(sort_by)) {
-    sort_dt(summ_events, sort_by, sort_order)
-  }
-  
-  summ_events[]
+  summ_dodge[]
 }
 
-#' Summarize events.
-#'
-#' @param events An events object.
-#' @param select_expr Expression for selecting columns.
-#' @param by Columns to group by.
-#' @param ... Additional arguments can be a vector of values used to filter the specified column.
-#' @param class Class name of the summary object.
-summarize_events <- function(events,
-                             select_expr,
-                             by=NULL,
-                             ...,
-                             class="summary") {
-  
-  if (!is.null(by)) {
-    by <- match.arg(by, choices=names(events), several.ok=TRUE)
-  }
-
-  where <- list(...)
-  where <- where[names(where) %in% names(events) & !sapply(where, is.null)]
-  
-  where_expr <- TRUE
-  for (name in names(where)) {
-    expr <- bquote(.(as.symbol(name)) %in% where[[.(name)]])
-    where_expr <- paste(c(where_expr, expr), collapse="&")
+#' Finds the total elapsed time for a vector of date-time objects.
+total_time <- function(time, units="secs") {
+  if (length(time) <= 1) {
+    return(NA)
   }
   
-  summ_events <- events[eval(parse(text=where_expr)),
-                        eval(select_expr),
-                        by=by]
-  
-  setattr(summ_events, "class", c(class, class(summ_events)[-1]))
-  setattr(summ_events, "summary_info", c(list(by = by), where))
-  
-  summ_events[]
+  result <- as.numeric(suppressWarnings(difftime(max(time), min(time), units=units)))
 }
 
-#' Get info about a summary object.
-summary_info <- function(x) {
-  attr(x, "summary_info")
+#' Finds active time within a specified window.
+active_time <- function(time, window=10) {
+  if (length(time) <= 1) {
+    return(NA)
+  }
+  stopifnot(window > 0)
+  
+  diff_time <- diff(sort(time))
+  
+  repeat {
+    active_intervals <- diff_time[diff_time <= window]
+    result <- as.numeric(sum(active_intervals))
+    if (length(active_intervals) > 0) {
+      break
+    }
+    # double window size until we get a result
+    window <- window * 2
+  }
+  
+  result
 }

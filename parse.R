@@ -31,10 +31,6 @@ parse_combat <- function(log, file=NULL, time_digits=3) {
   
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="combat_events")
 
-  if (nrow(events) == 0) {
-    return(events)
-  }
-  
   events[type == "Combat", type := "absorb"]
   events[, type := tolower(type)]
   events[, crit := crit != ""]
@@ -49,12 +45,12 @@ parse_combat <- function(log, file=NULL, time_digits=3) {
   events[]
 }
 
-#' Parse combat summary entries.
+#' Parse combat parser summary entries.
 #'
 #' @param log Character vector of log lines.
 #' @param file Name of a log file to read from.
 #' @param time_digits Number of decimal places to use for time (seconds)
-#' @return A summary_events object.
+#' @return A parser_summary object.
 parse_summary <- function(log, file=NULL, time_digits=3) {
   
   pattern <- paste0(
@@ -68,12 +64,8 @@ parse_summary <- function(log, file=NULL, time_digits=3) {
     "(?<targets>[0-9]+) targets?$"
   )
 
-  events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="summary_events")
+  events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="parser_summary")
   
-  if (nrow(events) == 0) {
-    return(events)
-  }
-
   events[, type := tolower(type)]
   events[, crit_pct := round(ifelse(hits > 0, crits/hits, 0), 3)]
   setcolorder(events, c("time", "type", "interval", "xps", "total", "hits", "max", 
@@ -105,10 +97,6 @@ parse_crowd_control <- function(log, file=NULL, time_digits=3) {
   )
   
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="crowd_control_events")
-  
-  if (nrow(events) == 0) {
-    return(events)
-  }
   
   effects <- c("knocked down"  = "knockdown", 
                "juggled"       = "juggle",
@@ -145,10 +133,6 @@ parse_knockout <- function(log, file=NULL, time_digits=3) {
   pattern <- "^(?<time>[0-9]{16}) \\[Damage (?:In|Out)\\] (?<source>.+) knocked out (?<target>.+)$"
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="knockout_events")
   
-  if (nrow(events) == 0) {
-    return(events)
-  }
-  
   # Restoration Barrels don't count as real knockouts
   events <- events[target != "Restoration Barrel"]
 
@@ -167,10 +151,6 @@ parse_dodge <- function(log, file=NULL, time_digits=3) {
 
   pattern <- "^(?<time>[0-9]{16}) \\[Damage (?:In|Out)\\] (?<source>.+) dodged (?<target>.+)'s? (?<ability>.+)$"
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="dodge_events")
-  
-  if (nrow(events) == 0) {
-    return(events)
-  }
   
   # Fix names that were capitalized at the beginning of the line
   fix_cap_names(events)
@@ -197,10 +177,6 @@ parse_log <- function(log, pattern, file=NULL, time_digits=3, class="events") {
   events <- as.data.table(matches)
   setattr(events, "matched", attr(matches, "matched"))
   setattr(events, "class", c(class, class(events)))
-  
-  if (nrow(events) == 0) {
-    return(events)
-  }
   
   numeric_cols <- get_numeric_groups(pattern)
   if (length(numeric_cols) > 0) {
