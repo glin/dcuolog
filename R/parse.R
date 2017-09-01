@@ -1,13 +1,17 @@
-library(data.table)
+#' Parse a DCUO combat log.
+#'
+#' @param log Character vector of log lines.
+#' @param file Name of a log file to read from.
+#' @param time_digits Number of decimal places to use for time (seconds).
+#' @param type One of "combat", "summary", "crowd_control", "knockout", "dodge" (combat by default).
+#' @return Table of parsed combat log entries.
+#' @export
+parse_dcuo <- function(log, file=NULL,  time_digits=3,
+                       type=c("combat", "summary", "crowd_control", "knockout", "dodge")) {
 
-summary.CombatLog <- function(x) {}
-metrics.CombatLog <- function(x) {}
-metrics.time.CombatLog <- function(x) {}
-
-parse_dcuo <- function(log, file=NULL) {
-  if (missing(log) && !is.null(file)) {
-    log <- read_lines(file)
-  }
+  event_type <- match.arg(type)
+  parse_fun <- get(paste0("parse_", event_type))
+  parse_fun(log, file=file, time_digits=time_digits)
 }
 
 #' Parse general combat events: damage, heal, power, absorb, supercharge.
@@ -15,9 +19,10 @@ parse_dcuo <- function(log, file=NULL) {
 #' @param log Character vector of log lines.
 #' @param file Name of a log file to read from.
 #' @param time_digits Number of decimal places to use for time (seconds).
-#' @return A combat_events object.
+#' @return A `combat_events` object.
+#' @export
 parse_combat <- function(log, file=NULL, time_digits=3) {
-  
+
   pattern <- paste0(
     "^(?<time>[0-9]{16}) ",
     "\\[(?<type>Damage|Healing|Power|Supercharge|Combat) (?>In|Out)\\] ",
@@ -28,20 +33,20 @@ parse_combat <- function(log, file=NULL, time_digits=3) {
     "(?<value>[0-9]+)",
     "(?: Power| Supercharge)?$"
   )
-  
+
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="combat_events")
 
   events[type == "Combat", type := "absorb"]
   events[, type := tolower(type)]
   events[, crit := crit != ""]
   setcolorder(events, c("time", "source", "target", "ability", "value", "type", "crit"))
-  
+
   # Fix names that were capitalized at the beginning of the line
   fix_cap_names(events)
-  
+
   # Fix incorrect attribution of abilities with aura or chain effects
   fix_attribution(events)
-  
+
   events[]
 }
 
@@ -50,9 +55,10 @@ parse_combat <- function(log, file=NULL, time_digits=3) {
 #' @param log Character vector of log lines.
 #' @param file Name of a log file to read from.
 #' @param time_digits Number of decimal places to use for time (seconds)
-#' @return A parser_summary object.
+#' @return A `parser_summary` object.
+#' @export
 parse_summary <- function(log, file=NULL, time_digits=3) {
-  
+
   pattern <- paste0(
     "^(?<time>[0-9]{1,16}) ",  # time=0 bug still exists as of 2/20/17
     "\\[Summary\\] (?<type>Damage|Healing|Power) ",
@@ -65,25 +71,26 @@ parse_summary <- function(log, file=NULL, time_digits=3) {
   )
 
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="parser_summary")
-  
+
   events[, type := tolower(type)]
   events[, crit_pct := round(ifelse(hits > 0, crits/hits, 0), 3)]
-  setcolorder(events, c("time", "type", "interval", "xps", "total", "hits", "max", 
+  setcolorder(events, c("time", "type", "interval", "xps", "total", "hits", "max",
                         "crits", "crit_pct", "targets"))
-  
+
   events[]
 }
 
 #' Parse crowd control effects, including counters.
-#' 
+#'
 #' Effects can be one of the following:
-#'   knockdown, juggle, stun, pull, push, ground, encasement, snare, root, 
+#'   knockdown, juggle, stun, pull, push, ground, encasement, snare, root,
 #'   knockback, suppression, counter
 #'
 #' @param log Character vector of log lines.
 #' @param file Name of a log file to read from.
 #' @param time_digits Number of decimal places to use for time (seconds).
-#' @return A crowd_control_events object.
+#' @return A `crowd_control_events` object.
+#' @export
 parse_crowd_control <- function(log, file=NULL, time_digits=3) {
 
   pattern <- paste0(
@@ -95,10 +102,10 @@ parse_crowd_control <- function(log, file=NULL, time_digits=3) {
     "encased|snared|rooted|knocked back|suppressed) ",
     "(?<target>.+)$"
   )
-  
+
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="crowd_control_events")
-  
-  effects <- c("knocked down"  = "knockdown", 
+
+  effects <- c("knocked down"  = "knockdown",
                "juggled"       = "juggle",
                "stunned"       = "stun",
                "pulled toward" = "pull",
@@ -109,16 +116,16 @@ parse_crowd_control <- function(log, file=NULL, time_digits=3) {
                "rooted"        = "root",
                "knocked back"  = "knockback",
                "suppressed"    = "suppression")
-  
+
   events[, effect := effects[effect]]
-  
-  # Only 3 Quantum abilities inflict the actual "suppression" effect - the rest are counters 
+
+  # Only 3 Quantum abilities inflict the actual "suppression" effect - the rest are counters
   suppression_abilities <- c("Time Shift", "Time Bomb", "Temporal Vortex", "Warped Reality")
   events[effect == "suppression" & !ability %in% suppression_abilities, effect := "counter"]
-  
+
   # Fix names that were capitalized at the beginning of the line
   fix_cap_names(events)
-  
+
   events[]
 }
 
@@ -127,14 +134,22 @@ parse_crowd_control <- function(log, file=NULL, time_digits=3) {
 #' @param log Character vector of log lines.
 #' @param file Name of a log file to read from.
 #' @param time_digits Number of decimal places to use for time (seconds).
-#' @return A knockout_events object.
+#' @return A `knockout_events` object.
+#' @export
 parse_knockout <- function(log, file=NULL, time_digits=3) {
 
   pattern <- "^(?<time>[0-9]{16}) \\[Damage (?:In|Out)\\] (?<source>.+) knocked out (?<target>.+)$"
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="knockout_events")
-  
+  matched <- attr(events, "matched")
+
   # Restoration Barrels don't count as real knockouts
-  events <- events[target != "Restoration Barrel"]
+  barrel_knockouts <- events[, target == "Restoration Barrel"]
+
+  if (any(barrel_knockouts)) {
+    matched <- matched[!barrel_knockouts]
+    events <- events[!barrel_knockouts]
+    setattr(events, "matched", matched)
+  }
 
   # Names are properly formatted in knockouts
 
@@ -146,51 +161,54 @@ parse_knockout <- function(log, file=NULL, time_digits=3) {
 #' @param log Character vector of log lines.
 #' @param file Name of a log file to read from.
 #' @param time_digits Number of decimal places to use for time (seconds).
-#' @return A dodge_events object.
+#' @return A `dodge_events` object.
+#' @export
 parse_dodge <- function(log, file=NULL, time_digits=3) {
 
   pattern <- "^(?<time>[0-9]{16}) \\[Damage (?:In|Out)\\] (?<source>.+) dodged (?<target>.+)'s? (?<ability>.+)$"
   events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="dodge_events")
-  
+
   # Fix names that were capitalized at the beginning of the line
   fix_cap_names(events)
-  
+
   events[]
 }
 
 #' Parse a combat log given a pattern.
+#' @keywords internal
 parse_log <- function(log, pattern, file=NULL, time_digits=3, class="events") {
-  
+
   if (!is.null(file)) {
     log <- read_lines(file)
   }
-  
+
   if (!is.character(log)) {
     stop("'log' must be a character vector")
   }
-  
+
   if (!grepl("?<time>", pattern)) {
     stop("pattern must contain a 'time' group")
   }
-  
+
   matches <- str_match_named(log, pattern)
   events <- as.data.table(matches)
   setattr(events, "matched", attr(matches, "matched"))
   setattr(events, "class", c(class, class(events)))
-  
+
   numeric_cols <- get_numeric_groups(pattern)
   if (length(numeric_cols) > 0) {
     events[, (numeric_cols) := lapply(.SD, as.numeric), .SDcols=numeric_cols]
   }
-  
+
   events[, time := as.POSIXct(round(as.numeric(time)/1e6, time_digits), origin="1970-01-01")]
-  
+
   events
 }
 
 #' Fix incorrect attribution of abilities with aura or chain reaction effects.
+#' @keywords internal
 fix_attribution <- function(combat_events) {
-  
+
   # Reattribute Sparring Target damage if there's only one other damage source in the log.
   sources <- combat_events[type == "damage", unique(source)]
   if (length(sources) == 2 && "Sparring Target" %in% sources) {
@@ -198,7 +216,7 @@ fix_attribution <- function(combat_events) {
     combat_events[type == "damage" & source == "Sparring Target", source := true_source]
     return(combat_events[])
   }
-  
+
   # Aura/chain abilities in each powerset
   aura_abilities <- list(
     electricity = c("Electrogenesis", "Voltaic Bolt", "Arc Lightning", "Overcharge"),
@@ -208,7 +226,7 @@ fix_attribution <- function(combat_events) {
     celestial   = c("Corrupted Retribution", "Curse", "Cleansed Curse"),
     munitions   = c("Chain Grenade Launcher")
   )
-  
+
   for (powerset in names(aura_abilities)) {
     if (any(aura_abilities[[powerset]] %in% combat_events$ability)) {
       # Most aura attacks show up in the combat log attributed to both the source and the target.
@@ -217,7 +235,7 @@ fix_attribution <- function(combat_events) {
       aura_dmg_events <- combat_events[type == "damage" & ability %in% aura_abilities[[powerset]]]
       sources <- aura_dmg_events[, unique(source)]
       targets <- aura_dmg_events[, unique(target)]
-      
+
       # If there's only one remaining source, it's likely to be the true source.
       true_source <- sources[!sources %in% targets]
       if (length(true_source) == 1) {
@@ -225,11 +243,12 @@ fix_attribution <- function(combat_events) {
       }
     }
   }
-  
+
   combat_events[]
 }
 
 #' Fix capitalization of source names.
+#' @keywords internal
 fix_cap_names <- function(events) {
   # Check the 'target' field for the original capitalization
   targets <- unique(events$target)

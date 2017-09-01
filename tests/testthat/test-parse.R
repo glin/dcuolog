@@ -357,11 +357,12 @@ test_that("parse_knockout parses knockouts", {
   expect_true(all(events$target == "Swamp Thing"))
 })
 
-test_that("parse_knockout does not parse Restoration Barrel knockouts", {
+test_that("parse_knockout ignores Restoration Barrel knockouts", {
   # TODO test that other object knockouts aren't counted
   log <- c("1468470478861786 [Damage Out] Captain Planet knocked out Restoration Barrel",
            "1468470478861786 [Damage In] Captain Planet knocked out Restoration Barrel")
   events <- parse_knockout(log)
+  expect_true(length(attr(events, "matched")) == 0)
   expect_true(nrow(events) == 0)
 })
 
