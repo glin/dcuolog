@@ -39,3 +39,19 @@ get_numeric_groups <- function(pattern) {
   matches <- stri_match_all_regex(pattern, "\\(?<(?<num>[a-zA-Z]+)>\\[0-9\\]", omit_no_match=TRUE)
   matches[[1]][, 2]
 }
+
+#' Sort a data table in place.
+#'
+#' @param dt A data table.
+#' @param sort_by Column to sort by.
+#' @param sort_order Sort in "desc" or "asc" order (desc by default).
+sort_dt <- function(dt, by, order=c("desc", "asc")) {
+  
+  stopifnot(inherits(dt, "data.table"))
+  
+  by <- match.arg(by, choices=names(dt))
+  order <- match.arg(order)
+  setorderv(dt, by, order=ifelse(order == "asc", 1L, -1L))
+  
+  dt
+}

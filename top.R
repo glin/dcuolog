@@ -9,16 +9,14 @@ top <- function(events, ...) {
 #' @param n Number of events (30 by default).
 #' @return The top n events in the log.
 top.combat_events <- function(events,
-                              type=c("damage", "healing", "power", "absorb", "supercharge"),
-                              n=30) {
+                              n=30,
+                              type=c("damage", "healing", "power", "absorb", "supercharge")) {
   
   stopifnot(n >= 0)
   
   event_type <- match.arg(type)
   top_events <- events[type == event_type]
-  top_events <- top_events[, -"type"]
-
-  setorderv(top_events, "value", order=-1L)
+  sort_dt(top_events, by="value", order="desc")
   
   head(top_events, n)
 }
