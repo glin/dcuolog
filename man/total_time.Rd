@@ -2,11 +2,11 @@
 % Please edit documentation in R/summary.R
 \name{total_time}
 \alias{total_time}
-\title{Finds the total elapsed time for a vector of date-time objects.}
+\title{Find the total elapsed time for a vector of date-time objects.}
 \usage{
 total_time(time, units = "secs")
 }
 \description{
-Finds the total elapsed time for a vector of date-time objects.
+Find the total elapsed time for a vector of date-time objects.
 }
 \keyword{internal}

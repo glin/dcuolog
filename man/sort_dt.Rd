@@ -2,18 +2,18 @@
 % Please edit documentation in R/utils.R
 \name{sort_dt}
 \alias{sort_dt}
-\title{Sort a data table in place.}
+\title{Sort a \code{data.table} in place.}
 \usage{
 sort_dt(dt, by, order = c("desc", "asc"))
 }
 \arguments{
-\item{dt}{A data table.}
+\item{dt}{A \code{data.table}.}
 
 \item{sort_by}{Column to sort by.}
 
 \item{sort_order}{Sort in "desc" or "asc" order (desc by default).}
 }
 \description{
-Sort a data table in place.
+Sort a \code{data.table} in place.
 }
 \keyword{internal}

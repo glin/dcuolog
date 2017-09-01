@@ -43,13 +43,14 @@ str_match_named <- function(string, pattern) {
 #' @importFrom stringi stri_match_all_regex
 #' @keywords internal
 get_numeric_groups <- function(pattern) {
-  matches <- stri_match_all_regex(pattern, "\\(?<(?<num>[a-zA-Z]+)>\\[0-9\\]", omit_no_match=TRUE)
+  matches <- stri_match_all_regex(pattern, "\\(?<(?<num>[a-zA-Z]+)>\\[0-9\\]",
+                                  omit_no_match=TRUE)
   matches[[1]][, 2]
 }
 
-#' Sort a data table in place.
+#' Sort a `data.table` in place.
 #'
-#' @param dt A data table.
+#' @param dt A `data.table`.
 #' @param sort_by Column to sort by.
 #' @param sort_order Sort in "desc" or "asc" order (desc by default).
 #' @keywords internal
@@ -62,4 +63,13 @@ sort_dt <- function(dt, by, order=c("desc", "asc")) {
   setorderv(dt, by, order=ifelse(order == "asc", 1L, -1L))
 
   dt
+}
+
+#' Like `data.table::setcolorder`, but the column order can be a superset of
+#' columns in the `data.table`.
+#'
+#' @keywords internal
+set_dt_order <- function(dt, neworder) {
+  neworder <- unique(neworder[neworder %in% names(dt)])
+  setcolorder(dt, neworder)
 }

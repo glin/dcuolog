@@ -7,15 +7,38 @@ test_that("summarizes combat_events", {
            "1468470478861786 [Damage Out] Captain Planet's Ranged Attack damaged Xi-Rho for 1000",
            "1468470478861786 [Damage Out] Captain Planet's Boxing damaged Xi-Rho for 1000",
            "1468470478861786 [Damage Out] Captain Planet's Boxing damaged Xi-Rho for 1000")
-  
+
   events <- parse_combat(log)
   summ_events <- summary(events)
 })
 
-test_that("power_metrics not valid for types other than damage, power, healing, absorb", {
+test_that("summarizes combat_events by ability", {
+  log <- c("1468470478861786 [Damage Out] Captain Planet's Ranged Attack damaged Xi-Rho for 500",
+           "1468470478861786 [Damage Out] Captain Planet's Ranged Attack damaged Xi-Rho for 1000",
+           "1468470478861786 [Damage Out] Captain Planet's Boxing damaged Xi-Rho for 1000",
+           "1468470478861786 [Damage Out] Captain Planet's Boxing damaged Xi-Rho for 1000")
+
+  events <- parse_combat(log)
+  summ_events <- summary(events, by="ability")
+})
+
+test_that("summarizes combat_events with power metrics", {
+  log <- c("1468470478861786 [Damage Out] Captain Planet's Ranged Attack damaged Xi-Rho for 500",
+           "1468470478861786 [Damage Out] Captain Planet's Ranged Attack damaged Xi-Rho for 1000",
+           "1468470478861786 [Damage Out] Captain Planet's Boxing damaged Xi-Rho for 1000",
+           "1468470478861786 [Damage Out] Captain Planet's Boxing damaged Xi-Rho for 1000",
+           "1468470478861786 [Power In] Captain Planet's Soder Cola Extreme healed Captain Planet for 500 Power",
+           "1468470478861786 [Power In] Captain Planet's Soder Cola Extreme healed Captain Planet for 1000 Power")
+
+  events <- parse_combat(log)
+  summ_events <- summary(events, power_metrics=TRUE)
+})
+
+test_that("power_metrics only valid when grouping by source", {
   events <- parse_combat("")
-  for (type in c("damage_in", "healing_in", "power_in", "supercharge")) {
-    expect_error(summary(events, type=type, power_metrics=TRUE))
+  summary(events, by="source", power_metrics=TRUE)
+  for (group_by in list(c("source", "target"), c("source", "ability"), c("target", "ability"))) {
+    expect_error(summary(events, by=group_by, power_metrics=TRUE))
   }
 })
 
@@ -65,61 +88,65 @@ test_that("handles empty dodge_events", {
 context("summary")
 
 test_that("total_time handles a single observation", {
-  time_obs <- as.POSIXct(0, origin="1970-01-01")
-  time <- total_time(time_obs)
-  expect_true(is.na(time))
+  time <- as.POSIXct(0, origin="1970-01-01")
+  duration <- total_time(time)
+  expect_true(is.na(duration))
+  expect_type(duration, "double")
 })
 
 test_that("total_time handles zero observations", {
-  time_obs <- c()
-  time <- total_time(time_obs)
-  expect_true(is.na(time))
+  time <- c()
+  duration <- total_time(time)
+  expect_true(is.na(duration))
+  expect_type(duration, "double")
 })
 
 test_that("total_time handles multiple observations at the same point in time", {
-  time_obs <- rep(as.POSIXct(0, origin="1970-01-01"), 4)
-  time <- total_time(time_obs)
-  expect_equal(time, 0)
+  time <- rep(as.POSIXct(0, origin="1970-01-01"), 4)
+  duration <- total_time(time)
+  expect_equal(duration, 0)
 })
 
 test_that("active_time works for a single instance of combat", {
   time <- c(1, 2, 4)
-  combat_time <- active_time(time, window=3)
-  expect_true(combat_time == 3)
+  duration <- active_time(time, window=3)
+  expect_true(duration == 3)
 })
 
 test_that("active_time works for multiple instances of combat", {
   time <- c(1, 2, 4, 10, 12, 14)
-  combat_time <- active_time(time, window=3)
-  expect_true(combat_time == 7)
+  duration <- active_time(time, window=3)
+  expect_true(duration == 7)
 })
 
 test_that("active_time handles a single observation", {
   time <- 1
-  combat_time <- active_time(time)
-  expect_true(is.na(combat_time))
+  duration <- active_time(time)
+  expect_true(is.na(duration))
+  expect_type(duration, "double")
 })
 
 test_that("active_time handles zero observations", {
   time <- c()
-  combat_time <- active_time(time)
-  expect_true(is.na(combat_time))
+  duration <- active_time(time)
+  expect_true(is.na(duration))
+  expect_type(duration, "double")
 })
 
 test_that("active_time handles multiple observations at the same point in time", {
   time <- c(1, 1, 1, 1)
-  combat_time <- active_time(time, window=3)
-  expect_true(combat_time == 0)
+  duration <- active_time(time, window=3)
+  expect_true(duration == 0)
 })
 
 test_that("active_time handles a single instance of combat exceeding the window", {
   time <- c(1, 100)
-  combat_time <- active_time(time, window=3)
-  expect_true(combat_time == 99)
+  duration <- active_time(time, window=3)
+  expect_true(duration == 99)
 })
 
 test_that("active_time handles multiple instances of combat exceeding the window", {
   time <- c(1, 100, 200, 400)
-  combat_time <- active_time(time, window=3)
-  expect_true(combat_time == 199)
+  duration <- active_time(time, window=3)
+  expect_true(duration == 199)
 })

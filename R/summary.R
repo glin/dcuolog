@@ -1,67 +1,73 @@
-# TODO overall_pct not relevant when by_ability=FALSE or length source = 1
-# TODO targets, dps/target, change by, change targets showing up if target=NULL, don't show time (do it somewhere else, or in attributes)
-
-
 #' Summarize general combat events.
 #'
 #' @param events A `combat_events` object.
-#' @param type One of "damage", "healing", "power", "absorb", "supercharge",
-#'   "damage_in", "healing_in", "power_in" (damage by default).
-#' @param by_ability Aggregate by ability.
-#' @param power_metrics Include power in metrics (only for damage, healing, power, or absorb).
-#' @param combat_window Maximum window of combat time (10 seconds by default).
+#' @param type One of "damage", "healing", "power", "absorb", "supercharge" (damage by default).
+#' @param by Group by any combination of "source", "target", "ability" (source by default).
+#' @param power_metrics Include power in metrics (only valid when grouping by source).
+#' @param active_window Window of active combat time (10 seconds by default).
 #' @return Summary table of general combat events.
 #' @export
 summary.combat_events <- function(events,
-                                  type=c("damage", "healing", "power", "absorb", "supercharge",
-                                         "damage_in", "healing_in", "power_in"),
-                                  by_ability=FALSE,
+                                  type=c("damage", "healing", "power", "absorb", "supercharge"),
+                                  by="source",
                                   power_metrics=FALSE,
-                                  combat_window=10) {
+                                  active_window=10) {
 
   summ_type <- match.arg(type)
+  group_by <- match.arg(by, c("source", "target", "ability"), several.ok=TRUE)
 
-  if (power_metrics && !summ_type %in% c("damage", "healing", "power", "absorb")) {
-    stop("power in metrics only apply to types: damage, healing, power, or absorb")
+  if (power_metrics && !identical(group_by, "source")) {
+    stop("power in metrics only apply when grouping by source")
   }
 
-  if (endsWith(summ_type, "_in")) {
-    summ_type <- unlist(strsplit(summ_type, "_"))[1]
-    source_col <- "target"
-  } else {
-    source_col <- "source"
+  compute_expr <- quote(list(
+    total = sum(value),
+    n = .N,
+    min = suppressWarnings(min(value)),
+    max = suppressWarnings(max(value)),
+    avg = round(sum(value)/.N, 1),
+    crit_pct = round(sum(crit)/.N, 3)
+  ))
+
+  if (!"ability" %in% group_by) {
+    # min/avg only useful when looking at individual abilities
+    compute_expr[c("min", "avg")] <- NULL
   }
 
-  group_by <- c(source_col, if (by_ability) "ability")
-
-  summ_combat <- events[type == summ_type,
-                        list(n = .N,
-                             min = suppressWarnings(min(value)),
-                             max = suppressWarnings(max(value)),
-                             avg = round(sum(value)/.N, 1),
-                             total = sum(value),
-                             crit_pct = round(sum(crit)/.N, 3)),
-                        by=group_by]
+  summ_combat <- events[type == summ_type, eval(compute_expr), by=group_by]
 
   summ_combat[, overall_pct := round(total/sum(total), 3)]
 
-  source_times <- events[, list(time = round(total_time(time), 1),
-                                combat_time = round(active_time(time, window=combat_window), 1)),
-                         by=source_col]
-
-  summ_combat <- merge(summ_combat, source_times, by=source_col)
-  summ_combat[, xps := ifelse(time > 0, round(total/time, 1), NA)]
-  summ_combat[, e_xps := ifelse(time > 0, round(total/combat_time, 1), NA)]
-
-  xps <- paste0(substr(summ_type, 0, 1), "ps")
-  e_xps <- paste0("e_", xps)
-  setnames(summ_combat, c(source_col, "xps", "e_xps"), c("source", xps, e_xps))
+  if (all(group_by %in% c("source", "target"))) {
+    times <- events[, list(time = round(total_time(time), 1),
+                           active_time = round(active_time(time, window=active_window), 1)),
+                    by=group_by]
+    summ_combat <- merge(summ_combat, times, by=group_by)
+    summ_combat[, xps := ifelse(time > 0, round(total/time, 1), NA)]
+    summ_combat[, e_xps := ifelse(time > 0, round(total/active_time, 1), NA)]
+  }
 
   if (power_metrics) {
-    power_in <- events[type == "power", list(power_in = sum(value)), by=list(source=target)]
-    summ_combat <- merge(summ_combat, power_in, by="source", all.x=TRUE)
+    power_in <- events[type == "power", list(power_in=sum(value)), by=group_by]
+    summ_combat <- merge(summ_combat, power_in, by=group_by, all.x=TRUE)
     summ_combat[, xpp := round(ifelse(power_in > 0, total/power_in, NA), 1)]
-    setnames(summ_combat, "xpp", paste0(substr(summ_type, 0, 1), "pp"))
+  }
+
+  order <- c("source", "target", "ability", "total", "overall_pct",
+             "time", "active_time", "xps", "e_xps",
+             "n", "min", "max", "avg", "crit_pct",
+             "power_in", "xpp")
+  set_dt_order(summ_combat, order)
+
+  if ("xps" %in% names(summ_combat)) {
+    xps <- paste0(substr(summ_type, 0, 1), "ps")
+    e_xps <- paste0("e_", xps)
+    setnames(summ_combat, c("xps", "e_xps"), c(xps, e_xps))
+  }
+
+  if ("xpp" %in% names(summ_combat)) {
+    xpp <- paste0(substr(summ_type, 0, 1), "pp")
+    setnames(summ_combat, "xpp", xpp)
   }
 
   setattr(summ_combat, "class", c("combat_summary", class(summ_combat)))
@@ -148,21 +154,21 @@ summary.dodge_events <- function(events, by=c("source", "target", "ability")) {
   summ_dodge[]
 }
 
-#' Finds the total elapsed time for a vector of date-time objects.
+#' Find the total elapsed time for a vector of date-time objects.
 #' @keywords internal
 total_time <- function(time, units="secs") {
   if (length(time) <= 1) {
-    return(NA)
+    return(NA_real_)
   }
 
-  result <- as.numeric(suppressWarnings(difftime(max(time), min(time), units=units)))
+  as.numeric(suppressWarnings(difftime(max(time), min(time), units=units)))
 }
 
-#' Finds active time within a specified window.
+#' Find active time within a specified window.
 #' @keywords internal
 active_time <- function(time, window=10) {
   if (length(time) <= 1) {
-    return(NA)
+    return(NA_real_)
   }
   stopifnot(window > 0)
 

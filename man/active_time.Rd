@@ -2,11 +2,11 @@
 % Please edit documentation in R/summary.R
 \name{active_time}
 \alias{active_time}
-\title{Finds active time within a specified window.}
+\title{Find active time within a specified window.}
 \usage{
 active_time(time, window = 10)
 }
 \description{
-Finds active time within a specified window.
+Find active time within a specified window.
 }
 \keyword{internal}

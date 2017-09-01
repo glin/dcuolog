@@ -5,20 +5,19 @@
 \title{Summarize general combat events.}
 \usage{
 \method{summary}{combat_events}(events, type = c("damage", "healing", "power",
-  "absorb", "supercharge", "damage_in", "healing_in", "power_in"),
-  by_ability = FALSE, power_metrics = FALSE, combat_window = 10)
+  "absorb", "supercharge"), by = "source", power_metrics = FALSE,
+  active_window = 10)
 }
 \arguments{
 \item{events}{A \code{combat_events} object.}
 
-\item{type}{One of "damage", "healing", "power", "absorb", "supercharge",
-"damage_in", "healing_in", "power_in" (damage by default).}
+\item{type}{One of "damage", "healing", "power", "absorb", "supercharge" (damage by default).}
 
-\item{by_ability}{Aggregate by ability.}
+\item{by}{Group by any combination of "source", "target", "ability" (source by default).}
 
-\item{power_metrics}{Include power in metrics (only for damage, healing, power, or absorb).}
+\item{power_metrics}{Include power in metrics (only valid when grouping by source).}
 
-\item{combat_window}{Maximum window of combat time (10 seconds by default).}
+\item{active_window}{Window of active combat time (10 seconds by default).}
 }
 \value{
 Summary table of general combat events.
