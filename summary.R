@@ -47,6 +47,36 @@ summary.combat_events <- function(events,
   summ_events[]
 }
 
+#' Summarize combat summary entries.
+#'
+#' @param events A combat_summary object.
+#' @param type One of "damage", "healing", "power" (damage by default).
+#' @return A summary_summary object.
+summary.summary_events <- function(events, type=c("damage", "healing", "power")) {
+  
+  type <- match.arg(type)
+  
+  select_expr <- quote(list(n = .N,
+                            time = sum(interval),
+                            xps = round(sum(total) / sum(interval), 1),
+                            min_xps = suppressWarnings(min(xps)),
+                            max_xps = suppressWarnings(max(xps)),
+                            total = sum(total),
+                            hits = sum(hits),
+                            max = max(max),
+                            crits = sum(crits),
+                            crit_pct = round(sum(crits) / sum(hits), 3),
+                            targets = round(weighted.mean(targets, interval), 1)))
+  
+  summ_events <- summarize_events(events, select_expr, type=type, class="summary_summary")
+  
+  xps_cols <- c("xps", "min_xps", "max_xps")
+  new_xps_cols <- gsub("xps", paste0(substr(type, 0, 1), "ps"), xps_cols)
+  setnames(summ_events, xps_cols, new_xps_cols)
+  
+  summ_events[]
+}
+
 #' Summarize crowd control events.
 #'
 #' @param events A crowd_control_events object.
@@ -161,12 +191,14 @@ summary.dodge_events <- function(events,
 #' @param class Class name of the summary object.
 summarize_events <- function(events,
                              select_expr,
-                             by,
+                             by=NULL,
                              ...,
                              class="summary") {
   
-  by <- match.arg(by, choices=names(events), several.ok=TRUE)
-  
+  if (!is.null(by)) {
+    by <- match.arg(by, choices=names(events), several.ok=TRUE)
+  }
+
   where <- list(...)
   where <- where[names(where) %in% names(events) & !sapply(where, is.null)]
   

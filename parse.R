@@ -49,7 +49,7 @@ parse_combat <- function(log, file=NULL, time_digits=3) {
   events[]
 }
 
-#' Parse combat summary events.
+#' Parse combat summary entries.
 #'
 #' @param log Character vector of log lines.
 #' @param file Name of a log file to read from.
