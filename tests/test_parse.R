@@ -130,6 +130,13 @@ test_that("parse_combat handles lines with multiple apostrophes", {
   expect_true(events$ability == "Zeus's Heavenly Light")
 })
 
+test_that("parse_combat handles whitespace names", {
+  log <- "1468470478861786 [Damage In]  's Form Change damaged Johnny Bravo for 8229"
+  events <- parse_combat(log)
+  expect_true(events$source == " ")
+  expect_true(events$ability == "Form Change")
+})
+
 test_that("parse_combat fixes lowercase names that were capitalized at the beginning", {
   log <- c("1468470478861786 [Damage Out] Captain planet's Ranged Attack damaged captain planet for 625",
            "1468470478861786 [Healing Out] Captain planet's Recovery healed Xi-Rho for 625")
