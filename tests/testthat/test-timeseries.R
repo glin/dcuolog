@@ -8,7 +8,7 @@ test_that("timeseries.combat_events handles events out of order", {
            "1468470478861786 [Damage Out] Captain Planet's Ranged Attack damaged Xi-Rho for 1457")
   events <- parse_combat(log)
   ts <- timeseries(events)
-  expect_equal(ts$time, as.POSIXct(c(1468470478, 1468470479, 1468470480), origin="1970-01-01"))
+  expect_equal(ts$time, as.POSIXct(c(1468470478, 1468470479, 1468470480), origin = "1970-01-01"))
   expect_equal(ts$value, c(3555, 1457, 2000))
 })
 

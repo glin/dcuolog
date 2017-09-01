@@ -6,12 +6,12 @@
 #' @param type One of "combat", "summary", "crowd_control", "knockout", "dodge" (combat by default).
 #' @return Table of parsed combat log entries.
 #' @export
-parse_dcuo <- function(log, file=NULL,  time_digits=3,
-                       type=c("combat", "summary", "crowd_control", "knockout", "dodge")) {
+parse_dcuo <- function(log, file = NULL, time_digits = 3,
+                       type = c("combat", "summary", "crowd_control", "knockout", "dodge")) {
 
   event_type <- match.arg(type)
   parse_fun <- get(paste0("parse_", event_type))
-  parse_fun(log, file=file, time_digits=time_digits)
+  parse_fun(log, file = file, time_digits = time_digits)
 }
 
 #' Parse general combat events: damage, heal, power, absorb, supercharge.
@@ -21,7 +21,7 @@ parse_dcuo <- function(log, file=NULL,  time_digits=3,
 #' @param time_digits Number of decimal places to use for time (seconds).
 #' @return A `combat_events` object.
 #' @export
-parse_combat <- function(log, file=NULL, time_digits=3) {
+parse_combat <- function(log, file = NULL, time_digits = 3) {
 
   pattern <- paste0(
     "^(?<time>[0-9]{16}) ",
@@ -34,7 +34,7 @@ parse_combat <- function(log, file=NULL, time_digits=3) {
     "(?: Power| Supercharge)?$"
   )
 
-  events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="combat_events")
+  events <- parse_log(log, pattern, file = file, time_digits = time_digits, class = "combat_events")
 
   events[type == "Combat", type := "absorb"]
   events[, type := tolower(type)]
@@ -57,10 +57,10 @@ parse_combat <- function(log, file=NULL, time_digits=3) {
 #' @param time_digits Number of decimal places to use for time (seconds)
 #' @return A `parser_summary` object.
 #' @export
-parse_summary <- function(log, file=NULL, time_digits=3) {
+parse_summary <- function(log, file = NULL, time_digits = 3) {
 
   pattern <- paste0(
-    "^(?<time>[0-9]{1,16}) ",  # time=0 bug still exists as of 2/20/17
+    "^(?<time>[0-9]{1,16}) ",  # time = 0 bug still exists as of 2/20/17
     "\\[Summary\\] (?<type>Damage|Healing|Power) ",
     "\\[(?<interval>[0-9]+\\.[0-9]+)s\\] ",
     "(?<xps>[0-9]+)/s - ",
@@ -70,7 +70,7 @@ parse_summary <- function(log, file=NULL, time_digits=3) {
     "(?<targets>[0-9]+) targets?$"
   )
 
-  events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="parser_summary")
+  events <- parse_log(log, pattern, file = file, time_digits = time_digits, class = "parser_summary")
 
   events[, type := tolower(type)]
   events[, crit_pct := round(ifelse(hits > 0, crits/hits, 0), 3)]
@@ -91,7 +91,7 @@ parse_summary <- function(log, file=NULL, time_digits=3) {
 #' @param time_digits Number of decimal places to use for time (seconds).
 #' @return A `crowd_control_events` object.
 #' @export
-parse_crowd_control <- function(log, file=NULL, time_digits=3) {
+parse_crowd_control <- function(log, file = NULL, time_digits = 3) {
 
   pattern <- paste0(
     "^(?<time>[0-9]{16}) ",
@@ -103,7 +103,7 @@ parse_crowd_control <- function(log, file=NULL, time_digits=3) {
     "(?<target>.+)$"
   )
 
-  events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="crowd_control_events")
+  events <- parse_log(log, pattern, file = file, time_digits = time_digits, class = "crowd_control_events")
 
   effects <- c("knocked down"  = "knockdown",
                "juggled"       = "juggle",
@@ -136,10 +136,10 @@ parse_crowd_control <- function(log, file=NULL, time_digits=3) {
 #' @param time_digits Number of decimal places to use for time (seconds).
 #' @return A `knockout_events` object.
 #' @export
-parse_knockout <- function(log, file=NULL, time_digits=3) {
+parse_knockout <- function(log, file = NULL, time_digits = 3) {
 
   pattern <- "^(?<time>[0-9]{16}) \\[Damage (?:In|Out)\\] (?<source>.+) knocked out (?<target>.+)$"
-  events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="knockout_events")
+  events <- parse_log(log, pattern, file = file, time_digits = time_digits, class = "knockout_events")
   matched <- attr(events, "matched")
 
   # Restoration Barrels don't count as real knockouts
@@ -163,10 +163,10 @@ parse_knockout <- function(log, file=NULL, time_digits=3) {
 #' @param time_digits Number of decimal places to use for time (seconds).
 #' @return A `dodge_events` object.
 #' @export
-parse_dodge <- function(log, file=NULL, time_digits=3) {
+parse_dodge <- function(log, file = NULL, time_digits = 3) {
 
   pattern <- "^(?<time>[0-9]{16}) \\[Damage (?:In|Out)\\] (?<source>.+) dodged (?<target>.+)'s? (?<ability>.+)$"
-  events <- parse_log(log, pattern, file=file, time_digits=time_digits, class="dodge_events")
+  events <- parse_log(log, pattern, file = file, time_digits = time_digits, class = "dodge_events")
 
   # Fix names that were capitalized at the beginning of the line
   fix_cap_names(events)
@@ -176,7 +176,7 @@ parse_dodge <- function(log, file=NULL, time_digits=3) {
 
 #' Parse a combat log given a pattern.
 #' @keywords internal
-parse_log <- function(log, pattern, file=NULL, time_digits=3, class="events") {
+parse_log <- function(log, pattern, file = NULL, time_digits = 3, class = "events") {
 
   if (!is.null(file)) {
     log <- read_lines(file)
@@ -197,10 +197,10 @@ parse_log <- function(log, pattern, file=NULL, time_digits=3, class="events") {
 
   numeric_cols <- get_numeric_groups(pattern)
   if (length(numeric_cols) > 0) {
-    events[, (numeric_cols) := lapply(.SD, as.numeric), .SDcols=numeric_cols]
+    events[, (numeric_cols) := lapply(.SD, as.numeric), .SDcols = numeric_cols]
   }
 
-  events[, time := as.POSIXct(round(as.numeric(time)/1e6, time_digits), origin="1970-01-01")]
+  events[, time := as.POSIXct(round(as.numeric(time)/1e6, time_digits), origin = "1970-01-01")]
 
   events
 }
@@ -220,11 +220,11 @@ fix_attribution <- function(combat_events) {
   # Aura/chain abilities in each powerset
   aura_abilities <- list(
     electricity = c("Electrogenesis", "Voltaic Bolt", "Arc Lightning", "Overcharge"),
-    nature      = c("Harvest"),
-    fire        = c("Spontaneous Combustion", "Overheat", "Inferno"),
-    gadgets     = c("Sticky Bomb"),
-    celestial   = c("Corrupted Retribution", "Curse", "Cleansed Curse"),
-    munitions   = c("Chain Grenade Launcher")
+    nature = c("Harvest"),
+    fire = c("Spontaneous Combustion", "Overheat", "Inferno"),
+    gadgets = c("Sticky Bomb"),
+    celestial = c("Corrupted Retribution", "Curse", "Cleansed Curse"),
+    munitions = c("Chain Grenade Launcher")
   )
 
   for (powerset in names(aura_abilities)) {
@@ -239,7 +239,8 @@ fix_attribution <- function(combat_events) {
       # If there's only one remaining source, it's likely to be the true source.
       true_source <- sources[!sources %in% targets]
       if (length(true_source) == 1) {
-        combat_events[type == "damage" & ability %in% aura_abilities[[powerset]], source := true_source]
+        combat_events[type == "damage" & ability %in% aura_abilities[[powerset]],
+                      source := true_source]
       }
     }
   }
@@ -248,6 +249,7 @@ fix_attribution <- function(combat_events) {
 }
 
 #' Fix capitalization of source names.
+#' @importFrom stats setNames
 #' @keywords internal
 fix_cap_names <- function(events) {
   # Check the 'target' field for the original capitalization

@@ -17,9 +17,9 @@ smooth <- function(ts, ...) {
 #' @return A `combat_ts` object.
 #' @export
 timeseries.combat_events <- function(events,
-                                     type=c("damage", "healing", "power", "absorb", "supercharge",
+                                     type = c("damage", "healing", "power", "absorb", "supercharge",
                                             "damage_in", "healing_in", "power_in"),
-                                     by_ability=FALSE) {
+                                     by_ability = FALSE) {
 
   type <- match.arg(type)
 
@@ -42,20 +42,20 @@ timeseries.combat_events <- function(events,
   # convert to regular 1 second interval time series
   # faster to work with time as double and convert back to date-time later
   agg_events[, time := round(as.numeric(time))]
-  ts <- agg_events[, list(value = sum(value)), by=group_by]
+  ts <- agg_events[, list(value = sum(value)), by = group_by]
 
   # fill in gaps
-  source_times <- ts[, list(min = min(time), max = max(time)), keyby=source_col]
+  source_times <- ts[, list(min = min(time), max = max(time)), keyby = source_col]
   all_times <- ts[, list(
     time = do.call(seq, as.list(source_times[eval(get(source_col)), c(min, max)]))
   ),
-  by=c(group_by[-1])]
+  by = c(group_by[-1])]
 
-  ts <- merge(ts, all_times, by=group_by, all=TRUE)
-  set(ts, i=which(is.na(ts$value)), j="value", value=0)
+  ts <- merge(ts, all_times, by = group_by, all = TRUE)
+  set(ts, i = which(is.na(ts$value)), j = "value", value = 0)
 
   setnames(ts, source_col, "source")
-  ts[, time := as.POSIXct(time, origin="1970-01-01")]
+  ts[, time := as.POSIXct(time, origin = "1970-01-01")]
 
   setattr(ts, "class", c("combat_ts", class(ts)))
 
@@ -86,12 +86,13 @@ smooth.combat_ts <- function(ts) {
   }
 
   by_ability <- "ability" %in% colnames(ts)
-  ts[, value := smooth_gaussian(value), by=c("source", if (by_ability) "ability")]
+  ts[, value := smooth_gaussian(value), by = c("source", if (by_ability) "ability")]
   ts[]
 }
 
 #' Plot combat time series data.
 #'
+#' @param ts A `combat_ts` object.
 #' @importFrom ggplot2 ggplot geom_line
 #' @export
 plot.combat_ts <- function(ts) {
@@ -108,7 +109,7 @@ plot.combat_ts <- function(ts) {
     color <- quote(source)
   }
 
-  ggplot(ts, aes(time, value)) + geom_line(mapping=aes_(color=color))
+  ggplot(ts, aes(time, value)) + geom_line(mapping = aes_(color = color))
 }
 
 #' Choose a rolling window size based on number of samples.
@@ -123,15 +124,15 @@ choose_window_size <- function(n) {
 #'
 #' @importFrom TTR WMA
 #' @keywords internal
-wma_gaussian <- function(x, window_size, sd=0.5) {
+wma_gaussian <- function(x, window_size, sd = 0.5) {
   stopifnot(window_size <= length(x))
   n <- seq_len(window_size) - 1
-  window <- gaussian_window(window_size, sd=sd)
-  WMA(x, window_size, wts=window)
+  window <- gaussian_window(window_size, sd = sd)
+  WMA(x, window_size, wts = window)
 }
 
 #' @keywords internal
-gaussian_window <- function(size, sd=0.5) {
+gaussian_window <- function(size, sd = 0.5) {
   stopifnot(size >= 2)
   n <- seq_len(size) - 1
   exp((-1/2) * ((n - (size-1)/2) / (sd * (size-1)/2))^2)

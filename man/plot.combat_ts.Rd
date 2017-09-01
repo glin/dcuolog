@@ -6,6 +6,9 @@
 \usage{
 \method{plot}{combat_ts}(ts)
 }
+\arguments{
+\item{ts}{A \code{combat_ts} object.}
+}
 \description{
 Plot combat time series data.
 }

@@ -15,14 +15,14 @@ test_that("parse_log fails to match pattern", {
 })
 
 test_that("parse_log sets class", {
-  events <- parse_log("", "(?<time>[0-9])", class="test_events")
+  events <- parse_log("", "(?<time>[0-9])", class = "test_events")
   expect_s3_class(events, "test_events")
 })
 
 test_that("parse_log handles timestamps", {
   timestamp <- strptime("12/21/2012 03:14:15.926", "%m/%d/%Y %H:%M:%OS")
   usec_time <- as.character(as.numeric(timestamp) * 1e6)
-  events <- parse_log(usec_time, "(?<time>[0-9]{16})", time_digits=3)
+  events <- parse_log(usec_time, "(?<time>[0-9]{16})", time_digits = 3)
   expect_equal(events$time, timestamp)
 })
 
@@ -269,7 +269,7 @@ test_that("parse_summary handles empty logs", {
 
 context("parse_crowd_control")
 
-test_parse_crowd_control <- function(string, effect, ability="Stomp Smash") {
+test_parse_crowd_control <- function(string, effect, ability = "Stomp Smash") {
   log <- c("1468470478861786 [Combat Out] Donna Troy's %s %s Captain Planet",
            "1468470478861786 [Combat In] Donna Troy's %s %s Captain Planet")
   log <- sprintf(log, ability, string)
@@ -323,13 +323,13 @@ test_that("parse_crowd_control parses knockback", {
 })
 
 test_that("parse_crowd_control parses counter", {
-  test_parse_crowd_control("suppressed", "counter", ability="Stomp Smash")
+  test_parse_crowd_control("suppressed", "counter", ability = "Stomp Smash")
 })
 
 test_that("parse_crowd_control parses suppression", {
-  test_parse_crowd_control("suppressed", "suppression", ability="Time Bomb")
-  test_parse_crowd_control("suppressed", "suppression", ability="Time Shift")
-  test_parse_crowd_control("suppressed", "suppression", ability="Temporal Vortex")
+  test_parse_crowd_control("suppressed", "suppression", ability = "Time Bomb")
+  test_parse_crowd_control("suppressed", "suppression", ability = "Time Shift")
+  test_parse_crowd_control("suppressed", "suppression", ability = "Temporal Vortex")
 })
 
 test_that("parse_crowd_control does not parse impulse", {
