@@ -36,7 +36,7 @@ summary.combat_events <- function(events,
 
   summ_combat <- events[type == summ_type, eval(compute_expr), by = group_by]
 
-  summ_combat[, overall_pct := round(total/sum(total), 3)]
+  summ_combat[, overall_pct := ifelse(total > 0, round(total/sum(total), 3), 0)]
 
   if (all(group_by %in% c("source", "target"))) {
     times <- events[, list(time = round(total_time(time), 1),

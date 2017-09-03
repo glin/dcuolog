@@ -42,6 +42,22 @@ test_that("power_metrics only valid when grouping by source", {
   }
 })
 
+test_that("returns NA for time metrics on a single event", {
+  log <- c("1468470478861786 [Damage Out] Captain Planet's Ranged Attack damaged Xi-Rho for 500")
+
+  events <- parse_combat(log)
+  summ_events <- summary(events)
+  expect_true(all(is.na(summ_events[, c("time", "dps", "e_dps")])))
+})
+
+test_that("returns 0 for overall_pct when total is 0 ", {
+  log <- c("1468470478861786 [Damage Out] Captain Planet's Ranged Attack damaged Xi-Rho for 0")
+
+  events <- parse_combat(log)
+  summ_events <- summary(events)
+  expect_equal(summ_events[["total"]], 0)
+})
+
 test_that("handles empty combat_events", {
   events <- parse_combat("")
   summ <- summary(events)
