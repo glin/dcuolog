@@ -1,3 +1,5 @@
 language: r
 cache: packages
 warnings_are_errors: false
+env:
+  - STRINGI_DISABLE_PKG_CONFIG="1"
