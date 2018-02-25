@@ -1,11 +1,11 @@
 Package: dcuolog
 Type: Package
 Title: Combat Log Parser for DC Universe Online
-Version: 0.1.0
+Version: 0.0.0.9000
 Authors@R: person("Greg", "Lin", email="glin@glin.io", role=c("cre", "aut"))
-Description: Parses DCUO combat logs for general combat events,
-    crowd control effects, knockouts, dodges, and combat parser summaries.
-    Provides tools for basic summary and time series analysis of this data.
+Description: Parser for DC Universe Online combat logs. Supports general combat
+    events, crowd control effects, knockouts, dodges, and the in-game parser
+    summary. Provides basic tools for analysis and visualization of combat data.
 Depends:
     R (>= 3.3)
 Imports:
