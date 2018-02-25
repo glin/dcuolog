@@ -1,4 +1,4 @@
 library(testthat)
-library(dcuo)
+library(dcuolog)
 
-test_check("dcuo")
+test_check("dcuolog")

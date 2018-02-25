@@ -1,4 +1,4 @@
-Package: dcuo
+Package: dcuolog
 Type: Package
 Title: Combat Log Parser for DC Universe Online
 Version: 0.1.0
