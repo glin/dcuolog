@@ -1,5 +1,3 @@
-library(testthat)
-
 context("parse_log")
 
 test_that("parse_log matches pattern", {

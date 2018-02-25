@@ -1,5 +1,3 @@
-library(testthat)
-
 context("timeseries")
 
 test_that("timeseries.combat_events handles events out of order", {

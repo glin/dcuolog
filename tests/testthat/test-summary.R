@@ -1,5 +1,3 @@
-library(testthat)
-
 context("summary.combat_events")
 
 test_that("summarizes combat_events", {

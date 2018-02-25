@@ -1,5 +1,3 @@
-library(testthat)
-
 context("utils")
 
 test_that("read_lines handles UTF-8", {
