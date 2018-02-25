@@ -73,3 +73,9 @@ set_dt_order <- function(dt, neworder) {
   neworder <- unique(neworder[neworder %in% names(dt)])
   setcolorder(dt, neworder)
 }
+
+# Backport of base::endsWith for R < 3.3.0
+endsWith <- function(x, suffix) {
+  strlen <- nchar(x)
+  substr(x, strlen - nchar(suffix) + 1, strlen) == suffix
+}

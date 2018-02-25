@@ -7,7 +7,7 @@ Description: Parser for DC Universe Online combat logs. Supports general combat
     events, crowd control effects, knockouts, dodges, and the in-game parser
     summary. Provides basic tools for analysis and visualization of combat data.
 Depends:
-    R (>= 3.3)
+    R (>= 3.0.0)
 Imports:
     data.table,
     ggplot2,
